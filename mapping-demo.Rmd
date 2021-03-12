@@ -1,0 +1,62 @@
+---
+title: "Mapping with sf"
+author: "Kelvin Gorospe"
+date: "3/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages and set directories
+rm(list=ls())
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+# library(rnaturalearthdata) # supporting data, only install/load if prompted 
+
+outdir <- "Outputs"
+
+```
+
+# Explore world countries data data
+
+```{r}
+# Get worldmap from rnaturalearth
+worldmap <- ne_countries(scale = "medium", returnclass = "sf")
+# returnclass can be sf or sp (older method of plotting in R)
+
+class(worldmap)
+# "simple features" data frame
+
+# which column contains the mapping data?
+head(worldmap)
+# Why are these multipolygons? (countries are not simple shapes, but combinations of shapes, like multiple islands, inland waters, etc.)
+
+# how many countries?
+unique(worldmap$name)
+
+# what type of projection (WGS84 - same as GPS)
+st_crs(worldmap)
+
+# Go here for list of projection: https://mgimond.github.io/Spatial/coordinate-systems-in-r.html
+# Need to look up explanations for +proj vs +datum vs +ellps
+
+```
+
+# Plot world countries
+
+
+```{r pressure, echo=FALSE}
+ggplot(data = worldmap) +
+  geom_sf() +
+  labs(title = "WGS 84 World Geodetic System 1984, used in GPS")
+
+st_set_crs(worldmap, )
+
+
+# Add points to the map
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
