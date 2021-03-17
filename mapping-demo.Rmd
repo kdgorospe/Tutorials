@@ -19,21 +19,18 @@ library(ggsn) # for adding north arrows and scale bar
 # library(spData) # for world data
 library(rnaturalearth)
 # library(rnaturalearthdata) # supporting data, only install/load if prompted 
-
-outdir <- "Outputs"
+library(gtrendsR) # get google search data
 
 ```
 
 # Explore world countries data
 
 ```{r}
-
-# FIX IT - wintri plotting works if coord_sf(datum = NULL) is included; go back to ne_countries for more straightforward code?
-
 # Get worldmap from rnaturalearth
 world <- ne_countries(scale = "medium", returnclass = "sf")
 # returnclass can be sf or sp (older method of plotting in R)
 
+# Other options for getting world data:
 # Get world from spData
 # Note: students will probably get ugly warning message related to this: https://github.com/r-spatial/sf/issues/1486
 # Might be OK if they install github development version but I'm guessing not worth the trouble?
@@ -52,11 +49,12 @@ head(world)
 # Why are these multipolygons? (countries are not simple shapes, but combinations of shapes, like multiple islands, inland waters, etc.)
 
 # how many administrations (not countries)?
-unique(world$NAME)
-unique(world$ISO_A3)
-unique(world$SOVEREIGNT)
+unique(world$name)
+unique(world$iso_a3)
+unique(world$sovereignt)
 
-# what type of projection (World Geodetic System 1984 aka WGS84 aka EPSG 4326 - same as what's used in GPS)
+# what type of coordinate reference system (World Geodetic System 1984 aka WGS84 aka EPSG 4326 - same as what's used in GPS)
+# remember this number: EPSG 4326
 st_crs(world)
 
 # Explanations for +proj vs +datum vs +ellps
@@ -67,7 +65,7 @@ st_crs(world)
 # all of these parameters make up your "Corrdinate Reference System" CRS
 # different combinations are better for local vs global representations (show example)
 # this is also all complicated by the fact that plate tectonics are shifting everything in different directions
-##? different combinations of datum + ellipsoid + projection can be set with an EPSG number (European Petroleum Survey Group); the one we have is EPSG 4326, the standard one used in GPS (WGS 84)
+# different combinations of datum + ellipsoid + projection can be set with an EPSG number (European Petroleum Survey Group); the one we have is EPSG 4326, the standard one used in GPS (WGS 84)
 # can set/reset all of these parameters but today we'll just modify the "projection" part
 # list of different types of projections and their aliases (you'll need this for your code): https://proj.org/operations/projections/
 
@@ -75,13 +73,14 @@ st_crs(world)
 
 # Plot world countries
 
-```{r pressure, echo=FALSE, warning = FALSE}
+```{r pressure, echo=FALSE}
+#warning = FALSE
 
 # To plot an SF object, just add geom_sf() to your ggplot code
 ggplot(data = world) +
   geom_sf() 
 
-# Different aes() how to make each country the same color, different color?
+# TRY THIS: how to make each country the same color vs. different color?
 ggplot(data = world) +
   geom_sf(aes(color = admin)) +
   theme(legend.position="none") 
@@ -92,9 +91,23 @@ ggplot(data = world) +
 
 # Color the inside of each country based on their population
 ggplot(data = world) +
-  geom_sf(aes(fill = as.numeric(pop_est))) # default comes as characater
+  geom_sf(aes(fill = as.numeric(pop_est))) + # default comes as characater
+  labs(fill = "Population size")
 
-# About different projections:
+# TRY THIS: summarize world data as total population per region (use column "region_wb") and plot
+world_region_pop <- world %>% 
+  group_by(region_wb) %>% 
+  summarise(pop_by_region = sum(as.numeric(pop_est))) 
+  
+# Notice how it automatically combines the polygons within each grouping into a single polygon
+ggplot(data = world_region_pop) +
+  geom_sf(aes(fill = pop_by_region))
+```
+
+# Working with projections
+
+```{r}
+# Default projection is standard lat/long
 ggplot(data = world) +
   geom_sf() +
   labs(title = "WGS 84 World Geodetic System 1984, used in GPS")
@@ -127,7 +140,7 @@ ggplot(data = world_wintri) +
 
 # Transform to Lambert azimuthal equal-area projection centered on longitude and latitude of 
 # Notice there are other parameters for this projection: https://proj.org/operations/projections/laea.html
-# Adding color to see 
+# Adding color to see graticules and country borders better
 world_laea1 <- st_transform_proj(world, crs = "+proj=laea +x_0=0 +y_0=0 +lon_0=0 +lat_0=0")
 ggplot(data = world_laea1) +
   geom_sf(color = "black") +
@@ -150,17 +163,27 @@ ggplot(data = world_laea2) +
 
 ```{r}
 # Choose a country
-kir_medium <- ne_countries(scale = "medium", returnclass = "sf", type = "countries", country = c("Kiribati", "Australia", "New Zealand", "Papua New Guinea", "Indonesia", "Solomon Islands", "New Caledonia", "Vanuatu", "Malaysia", "Philippines", "Vietnam", "Cambodia", "Thailand"))
+kir_medium_no_shift <- ne_countries(scale = "medium", returnclass = "sf", type = "countries", country = c("Kiribati", "Australia", "New Zealand", "Papua New Guinea", "Indonesia", "Solomon Islands", "New Caledonia", "Vanuatu", "Malaysia", "Philippines", "Vietnam", "Cambodia", "Thailand"))
 
 # Use the Admin column in world object to get the "correct" name
 sort(world$admin)
 
-# For things like Alaska, Kiribati that span the Dateline
-ggplot(data = kir_medium) +
+# Notice the range of X (and Y) values for Kiribati
+# Only country in the world to span all four hemispheres
+# Note first negative value row 86
+kir_medium_no_shift %>%
+  filter(name == "Kiribati") %>%
+  st_coordinates() 
+
+ggplot(data = kir_medium_no_shift) +
   geom_sf() 
 
-kir_medium <- st_shift_longitude(kir_medium)
-# Notice change in bbox coordinates: all negative numbers are +360
+# For things like Alaska, Kiribati that span the Dateline use st_shift_longitude
+kir_medium <- st_shift_longitude(kir_medium_no_shift)
+kir_medium %>%
+  filter(name == "Kiribati") %>%
+  st_coordinates()
+# Notice change in all longitude (i.e., x axis) coordinates: all negative numbers are +360
 
 ggplot(data = kir_medium) +
   geom_sf() 
@@ -206,7 +229,20 @@ usa_48 <- usa %>% filter(name %in% c("Hawaii", "Alaska")==FALSE)
 ggplot(usa_48) +
   geom_sf()
 
-# Or filter for a specific "state"
+# Use gtrendsR package to get google search trends for "vaccine"
+vaccine <- gtrends("vaccine", geo = "US", time = "now 7-d") # last 7 days
+str(vaccine) # it's a list of 7 data frames; we want the interest_by_region
+
+vaccine$interest_by_region
+
+# TRY IT: join vaccine data with map data of USA 48 states and plot
+usa_48 %>%
+  left_join(vaccine$interest_by_region, by = c("name" = "location")) %>%
+  ggplot() +
+  geom_sf(aes(fill = hits), color = "black")
+# Documentation on how Google Trends calculates "hits": https://support.google.com/trends/answer/4365533?hl=en
+
+# Can also filter for a specific "state" and plot
 wash_dc <- usa %>%
   filter(name == "District of Columbia")
 
@@ -220,7 +256,6 @@ ggplot(data = wash_dc) +
 # Add points to the map
 # Plot location of American University
 au_point <- data.frame(long = -77.09, lat = 38.94) # West coordinates are negative
-au_point_shift <- data.frame(long = -77.09 + 360, lat = 38.94) # Unless you've shifted longitude
 
 ggplot() +
   geom_sf(data = wash_dc, color = "black") +
@@ -228,11 +263,13 @@ ggplot() +
 
 # Careful that your different layers are using the same coordinate system
 ggplot() +
-  geom_sf(data = usa %>% st_shift_longitude()) +
+  geom_sf(data = usa_48 %>% st_shift_longitude()) +
   geom_point(data = au_point, color = "red", shape = 17, size = 5, aes(x = long, y = lat)) 
 
+# So if your geom_sf layer is shifted to all positive longitudes then same must be true for the geom_points layer
+au_point_shift <- data.frame(long = -77.09 + 360, lat = 38.94) # Unless you've shifted longitude
 ggplot() +
-  geom_sf(data = usa %>% st_shift_longitude()) +
+  geom_sf(data = usa_48 %>% st_shift_longitude()) +
   geom_point(data = au_point_shift, color = "red", shape = 17, size = 5, aes(x = long, y = lat)) 
 
 # Above uses WGS84 system which is the same as lat/long GPS coordinates - easy to add lat/long points
@@ -252,7 +289,7 @@ head(au_wintri) # Now it is an sf object with just the geometry column, automati
 # Plot AU location as a geom_sf with label
 ggplot() +
   geom_sf(data = usa_48 %>% st_transform_proj(., crs = "+proj=wintri")) +
-  geom_sf_label(data = au_wintri, aes(label = name), nudge_x = 700000, nudge_y = 250000) 
+  geom_sf_label(data = au_wintri, aes(label = name), nudge_x = 700000, nudge_y = 250000) +
   geom_sf(data = au_wintri, color = "red", shape = 17, size = 5)
 ```
 
@@ -261,9 +298,9 @@ ggplot() +
 
 ```{r}
 
-# EXERCISE: Plot the country/state where you were born and the GPS coordinates of the specific city where you were born + the country/state where you are now
+# TRY THIS: Plot the country/state where you were born and the GPS coordinates of the specific city where you were born + the country/state where you are now
 brooklyn_point <- data.frame(long = -73.94, lat = 40.68, name = "How it started")
-au_to_brooklyn <- au_point %>% 
+brooklyn_to_au <- au_point %>% 
   mutate(name = "How it's going") %>%
   bind_rows(brooklyn_point)
 
@@ -272,8 +309,8 @@ au_to_brooklyn <- au_point %>%
 # Use northSymbols() to see available symbols
 ggplot() + 
   geom_sf(data = usa_48) +
-  geom_point(data = au_to_brooklyn, color = "red", shape = 17, size = 3, aes(x = long, y = lat)) +
-  geom_label(data = au_to_brooklyn, aes(label = name, x = long, y = lat), nudge_y = -1.2, nudge_x = 4.5) +
+  geom_point(data = brooklyn_to_au, color = "red", shape = 17, size = 3, aes(x = long, y = lat)) +
+  geom_label(data = brooklyn_to_au, aes(label = name, x = long, y = lat), nudge_y = -1.2, nudge_x = 4.5) +
   north(usa_48, location = "bottomleft", symbol = 12) +
   scalebar(usa_48, location = "bottomleft", transform = TRUE, dist_unit = "km", dist = 500) +
   theme_map()
@@ -281,8 +318,8 @@ ggplot() +
 # Adjust north arrow and scalebar
 ggplot() + 
   geom_sf(data = usa_48, fill = "white") +
-  geom_point(data = au_to_brooklyn, color = "red", shape = 17, size = 3, aes(x = long, y = lat)) +
-  geom_label(data = au_to_brooklyn, aes(label = name, x = long, y = lat), nudge_y = -1.2, nudge_x = 4.5) +
+  geom_point(data = brooklyn_to_au, color = "red", shape = 17, size = 3, aes(x = long, y = lat)) +
+  geom_label(data = brooklyn_to_au, aes(label = name, x = long, y = lat), nudge_y = -1.2, nudge_x = 4.5) +
   north(usa_48, location = "bottomleft", symbol = 12, anchor = c(x = -126.5, y = 25)) +
   scalebar(usa_48, location = "bottomleft", transform = TRUE, dist_unit = "km", dist = 500, st.size = 3) +
   theme(axis.title = element_blank(),
