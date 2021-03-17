@@ -235,11 +235,22 @@ str(vaccine) # it's a list of 7 data frames; we want the interest_by_region
 
 vaccine$interest_by_region
 
-# TRY IT: join vaccine data with map data of USA 48 states and plot
+spring_break <- gtrends("spring break", geo = "US", time = "now 7-d") # last 7 days
+
+# TRY IT: join vaccine and spring break data with map data of USA 48 states and plot
 usa_48 %>%
   left_join(vaccine$interest_by_region, by = c("name" = "location")) %>%
   ggplot() +
-  geom_sf(aes(fill = hits), color = "black")
+  geom_sf(aes(fill = hits), color = "black") +
+  theme_map() +
+  labs(title = "Google search trends: Vaccine")
+
+usa_48 %>%
+  left_join(spring_break$interest_by_region, by = c("name" = "location")) %>%
+  ggplot() +
+  geom_sf(aes(fill = hits), color = "black") +
+  theme_map() +
+  labs(title = "Google search trends: Spring Break")
 # Documentation on how Google Trends calculates "hits": https://support.google.com/trends/answer/4365533?hl=en
 
 # Can also filter for a specific "state" and plot
