@@ -80,13 +80,15 @@ st_crs(world)
 ggplot(data = world) +
   geom_sf() 
 
-# TRY THIS: how to make each country the same color vs. different color?
+# TRY IT: how to make each country the same color vs. different color?
+# add theme(legend.position = "none")
+# change wherever it says fill_in_the_blank
 ggplot(data = world) +
-  geom_sf(aes(color = admin)) +
+  geom_sf(aes(color = fill_in_the_blank)) +
   theme(legend.position="none") 
 
 ggplot(data = world) +
-  geom_sf(color = "purple") +
+  geom_sf(color = "fill_in_the_blank") +
   theme(legend.position="none") 
 
 # Color the inside of each country based on their population
@@ -94,14 +96,14 @@ ggplot(data = world) +
   geom_sf(aes(fill = as.numeric(pop_est))) + # default comes as characater
   labs(fill = "Population size")
 
-# TRY THIS: summarize world data as total population per region (use column "region_wb") and plot
+# TRY IT: summarize world data as TOTAL (sum of) population per region (use column "region_wb") and plot
 world_region_pop <- world %>% 
   group_by(region_wb) %>% 
-  summarise(pop_by_region = sum(as.numeric(pop_est))) 
+  summarise(pop_by_region = fill_in_the_blank) 
   
 # Notice how it automatically combines the polygons within each grouping into a single polygon
-ggplot(data = world_region_pop) +
-  geom_sf(aes(fill = pop_by_region))
+ggplot(data = fill_in_the_blank) +
+  geom_sf(aes(fill = fill_in_the_blank))
 ```
 
 # Working with projections
@@ -203,6 +205,7 @@ ggplot(data = kir_large) +
 
 ggplot(data = kir_small) +
   geom_sf()
+
 ```
 
 
@@ -220,6 +223,9 @@ sort(world$admin)
 ggplot(data = usa) +
   geom_sf()
 
+# TRY IT: get map data for the country or state where you were born and plot it
+# REMINDER: Use ne_countries or ne_state
+
 # What can we do to fix Alaska wrapping around?
 ggplot(data = usa %>% st_shift_longitude()) +
   geom_sf()
@@ -235,20 +241,25 @@ str(vaccine) # it's a list of 7 data frames; we want the interest_by_region
 
 vaccine$interest_by_region
 
-spring_break <- gtrends("spring break", geo = "US", time = "now 7-d") # last 7 days
+# Join map dataframe with google trends dataframe and plot
+vaccine_map <- usa_48 %>%
+  left_join(vaccine$interest_by_region, by = c("name" = "location"))
 
-# TRY IT: join vaccine and spring break data with map data of USA 48 states and plot
-usa_48 %>%
-  left_join(vaccine$interest_by_region, by = c("name" = "location")) %>%
-  ggplot() +
+head(vaccine_map)
+
+ggplot(data = vaccine_map) +
   geom_sf(aes(fill = hits), color = "black") +
   theme_map() +
   labs(title = "Google search trends: Vaccine")
 
-usa_48 %>%
-  left_join(spring_break$interest_by_region, by = c("name" = "location")) %>%
-  ggplot() +
-  geom_sf(aes(fill = hits), color = "black") +
+# TRY IT: plot google trends data for "spring break" of USA 48 states and plot
+spring_break <- gtrends("spring break", geo = "US", time = "now 7-d") # last 7 days
+
+spring_break_map <- usa_48 %>%
+  left_join(fill_in_the_blank, by = c("name" = "location"))
+
+ggplot(data = fill_in_the_blank) +
+  geom_sf(aes(fill = fill_in_the_blank), color = "black") +
   theme_map() +
   labs(title = "Google search trends: Spring Break")
 # Documentation on how Google Trends calculates "hits": https://support.google.com/trends/answer/4365533?hl=en
@@ -309,8 +320,10 @@ ggplot() +
 
 ```{r}
 
-# TRY THIS: Plot the country/state where you were born and the GPS coordinates of the specific city where you were born + the country/state where you are now
+# Plot the country/state where you were born and the GPS coordinates of the specific city where you were born + the country/state where you are now
 brooklyn_point <- data.frame(long = -73.94, lat = 40.68, name = "How it started")
+# Reminder of where au_point comes from: 
+# au_point <- data.frame(long = -77.09, lat = 38.94) 
 brooklyn_to_au <- au_point %>% 
   mutate(name = "How it's going") %>%
   bind_rows(brooklyn_point)
@@ -337,6 +350,25 @@ ggplot() +
         #axis.line = element_line(color = "black"),
         panel.border = element_rect(color = "black", fill = NA),
         panel.background = element_rect(fill = "white"))
+
+# TRY IT: Plot the country/state where you were born and the GPS coordinates of the specific city where you were born + the country/state where you are now
+how_it_started_point <- data.frame(long = fill_in_the_blank, lat = fill_in_the_blank, name = "How it started")
+how_its_going_point <- data.frame(long = fill_in_the_blank, lat = fill_in_the_blank, name = "How it's going") 
+started_to_going <- how_it_started_point %>% 
+  bind_rows(how_its_going_point)
+
+# Add labels
+# Add north arrow and scale bar
+# Use northSymbols() to see available symbols
+ggplot() + 
+  geom_sf(data = fill_in_the_blank) +
+  #geom_sf(data = fill_in_the_blank) + # Some people may need two map layers depending on how it started vs how its going
+  geom_point(data = fill_in_the_blank, color = "red", shape = 17, size = 3, aes(x = long, y = lat)) +
+  geom_label(data = fill_in_the_blank, aes(label = name, x = long, y = lat), nudge_y = fill_in_the_blank, nudge_x = fill_in_the_blank) +
+  north(usa_48, location = "bottomleft", symbol = 12) +
+  scalebar(usa_48, location = "bottomleft", transform = TRUE, dist_unit = "km", dist = 500) +
+  theme_map()
+
 
 ```
 
